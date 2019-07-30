@@ -7,6 +7,7 @@ from rest_framework import status  # para los codigos estado ejem 200
 
 
 CREATE_USER_URL = reverse('user:create')
+TOKEN_URL = reverse('user:token')
 
 
 def create_user(**params):  # podemos agregar varios argumentos
@@ -54,3 +55,38 @@ class PublicUserApiTests(TestCase):
             email=payload['email']
         ).exists()
         self.assertFalse(user_exists)  # esperamos que usuario no exista porque pass muy corta
+
+    def test_create_token_for_user(self):
+        """Test crea token para el usuario"""
+        payload = {'email': 'test@gmail.com', 'password': 'testpass'}
+        create_user(**payload)
+        res = self.client.post(TOKEN_URL,payload)
+
+        self.assertIn('token', res.data)  #espero respuesta 200 con token
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_create_token_invalid_credentials(self):
+        """Test token no se crea por credenciales no validas """
+        create_user(email='test@gmail.com', password= 'testpass') #creo usuario
+        payload = {'email': 'test@gmail.com', 'password': 'wrong'}   #cargamos dato erroneo
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertNotIn('token', res.data)   #se espera token no exista
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_no_user(self):
+        """Test token no se crea, usuario no existe"""
+        payload = {'email': 'test@gmail.com', 'password': 'testpass'}
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertNotIn('token', res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_token_missing_field(self):
+        """Test email y pass son requeridos"""
+        res = self.client.post(TOKEN_URL, {'email': 'one', 'password': ''})
+
+        self.assertNotIn('token', res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+        
